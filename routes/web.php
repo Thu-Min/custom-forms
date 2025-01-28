@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\FormController;
+use App\Models\Form;
 use Illuminate\Support\Facades\Route;
 
 Route::controller(AuthController::class)->group(function() {
@@ -12,6 +14,12 @@ Route::controller(AuthController::class)->group(function() {
     Route::get('/logout', 'logout')->name('logout');
 });
 
-Route::get('/dashboard', function() {
-    return view('dashboard');
-})->middleware('auth')->name('dashboard');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/', function() {
+        $forms = Form::all();
+
+        return view('dashboard', compact('forms'));
+    })->name('dashboard');
+
+    Route::resource('forms', FormController::class);
+});
