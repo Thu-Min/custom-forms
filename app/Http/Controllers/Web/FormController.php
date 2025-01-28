@@ -46,6 +46,7 @@ class FormController extends Controller
         $form = Form::create([
             'name' => $request->name,
             'description' => $request->description,
+            'user_id' => auth()->id(),
         ]);
 
         // Store inputs
