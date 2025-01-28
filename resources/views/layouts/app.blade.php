@@ -11,7 +11,7 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full ">
+<body class="h-full mb-10">
     @include('layouts.partials.header')
     @yield('content')
 </body>

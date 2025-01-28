@@ -93,6 +93,10 @@ class FormController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $form = Form::findOrFail($id);
+
+        $form->delete();
+
+        return redirect()->route('dashboard');
     }
 }

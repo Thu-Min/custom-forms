@@ -25,10 +25,42 @@
                         <span class="text-md">{{ $form->name }}</span>
                         <span class="text-sm text-gray-400">Opened {{ $form->created_at->format('d/m/Y') }}</span>
                     </div>
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                    <div class="relative">
+                        <button id="dropdown-{{ $form->id }}" onclick="toggleDropdown({{ $form->id }})" class="focus:outline-none">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <div id="dropdown-menu-{{ $form->id }}" class="hidden absolute left-1 bottom-0 mt-2 w-48 bg-white border border-gray-300 rounded-md shadow-lg">
+                            <a href="#" onclick="copyLink('{{ route('forms.show', $form->id) }}')" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Copy Link</a>
+                            <a href="{{ route('forms.edit', $form->id) }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Edit</a>
+                            <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onclick="event.preventDefault(); document.getElementById('delete-form-{{ $form->id }}').submit();">Delete</a>
+                            <form id="delete-form-{{ $form->id }}" action="{{ route('forms.destroy', $form->id) }}" method="POST" style="display: none;">
+                                @csrf
+                                @method('DELETE')
+                            </form>
+                        </div>
+                    </div>
                 </div>
             </div>
         @endforeach
     </div>
 </div>
 @endsection
+
+<script>
+    function toggleDropdown(id) {
+        var dropdown = document.getElementById('dropdown-menu-' + id);
+        if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+            dropdown.style.display = 'block';
+        } else {
+            dropdown.style.display = 'none';
+        }
+    }
+
+    function copyLink(link) {
+        navigator.clipboard.writeText(link).then(function() {
+            alert('Link copied to clipboard');
+        }, function() {
+            alert('Failed to copy link to clipboard');
+        });
+    }
+</script>
