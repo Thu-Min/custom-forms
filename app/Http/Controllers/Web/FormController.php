@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Form;
+use App\Models\FormResponse;
 use Illuminate\Http\Request;
 
 class FormController extends Controller
@@ -59,7 +60,7 @@ class FormController extends Controller
             ]);
         }
 
-        return redirect()->route('forms.index')->with('success', 'Form created successfully.');
+        return redirect()->route('dashboard');
     }
 
     /**
@@ -96,6 +97,27 @@ class FormController extends Controller
         $form = Form::findOrFail($id);
 
         $form->delete();
+
+        return redirect()->route('dashboard');
+    }
+
+    public function submit(Request $request, string $id)
+    {
+        $form = Form::findOrFail($id);
+
+        $request->validate([
+            'responses' => 'required|array',
+            'responses.*.input_id' => 'required|exists:form_inputs,id',
+            'responses.*.response' => 'required',
+        ]);
+
+        foreach ($request->responses as $response) {
+            FormResponse::create([
+                'form_id' => $form->id,
+                'form_input_id' => $response['input_id'],
+                'response' => is_array($response['response']) ? json_encode($response['response']) : $response['response'],
+            ]);
+        }
 
         return redirect()->route('dashboard');
     }

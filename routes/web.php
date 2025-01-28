@@ -14,6 +14,8 @@ Route::controller(AuthController::class)->group(function() {
     Route::get('/logout', 'logout')->name('logout');
 });
 
+Route::post('forms/submit/{id}', [FormController::class, 'submit'])->name('forms.submit');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('/', function() {
         $forms = Form::all();
@@ -23,3 +25,5 @@ Route::middleware(['auth'])->group(function () {
 
     Route::resource('forms', FormController::class);
 });
+
+Route::get('forms/{id}', [FormController::class, 'show'])->name('forms.show');
