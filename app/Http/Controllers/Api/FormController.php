@@ -7,25 +7,29 @@ use App\Mail\FormSubmissionMail;
 use App\Models\Form;
 use App\Models\FormInput;
 use App\Models\FormResponse;
+use App\Traits\ApiResponseTrait;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+use Exception;
 
 class FormController extends Controller
 {
+
+    use ApiResponseTrait;
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $forms = Form::where('user_id', auth()->id())->get();
-
-        return response()->json([
-            'message' => 'Success',
-            'data' => [
-                'forms' => $forms
-            ],
-
-        ], 200);
+        try {
+            $forms = Form::where('user_id', auth()->id())->get();
+            return $this->successResponse($forms, 'Forms retrieved successfully');
+        } catch (Exception $e) {
+            return $this->errorResponse('Failed to fetch forms', 500, $e->getMessage());
+        }
     }
 
     /**
@@ -41,38 +45,38 @@ class FormController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'inputs' => 'required|array',
-            'inputs.*.label' => 'required|string|max:255',
-            'inputs.*.type' => 'required|string|in:text,date,number,select,checkbox',
-            'inputs.*.options' => 'nullable|array',
-            'inputs.*.options.*' => 'required_if:inputs.*.type,select,checkbox|string|max:255',
-        ]);
-
-        $form = Form::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'user_id' => auth()->id(),
-        ]);
-
-        foreach ($request->inputs as $input) {
-            $form->inputs()->create([
-                'label' => $input['label'],
-                'type' => $input['type'],
-                'options' => in_array($input['type'], ['select', 'checkbox']) ? json_encode($input['options'] ?? []) : null,
-                'required' => isset($input['required']) && $input['required'] === true,
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'inputs' => 'required|array',
+                'inputs.*.label' => 'required|string|max:255',
+                'inputs.*.type' => 'required|string|in:text,date,number,select,checkbox',
+                'inputs.*.options' => 'nullable|array',
+                'inputs.*.options.*' => 'required_if:inputs.*.type,select,checkbox|string|max:255',
             ]);
+
+            $form = Form::create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'user_id' => auth()->id(),
+            ]);
+
+            foreach ($request->inputs as $input) {
+                $form->inputs()->create([
+                    'label' => $input['label'],
+                    'type' => $input['type'],
+                    'options' => in_array($input['type'], ['select', 'checkbox']) ? json_encode($input['options'] ?? []) : null,
+                    'required' => isset($input['required']) && $input['required'] === true,
+                ]);
+            }
+
+            return $this->successResponse($form, 'Form created successfully', 201);
+        } catch (ValidationException $e) {
+            return $this->errorResponse('Validation error', 422, $e->errors());
+        } catch (Exception $e) {
+            return $this->errorResponse('Failed to create form', 500, $e->getMessage());
         }
-
-        return response()->json([
-            'message' => 'Success',
-            'data' => [
-                'forms' => $form
-            ],
-
-        ], 201);
     }
 
     /**
@@ -80,15 +84,12 @@ class FormController extends Controller
      */
     public function show(string $id)
     {
-        $form = Form::with('inputs', 'responses')->findOrFail($id);
-
-        return response()->json([
-            'message' => 'Success',
-            'data' => [
-                'forms' => $form
-            ],
-
-        ], 200);
+        try {
+            $form = Form::with('inputs', 'responses')->findOrFail($id);
+            return $this->successResponse($form, 'Form retrieved successfully');
+        } catch (Exception $e) {
+            return $this->errorResponse('Form not found', 404, $e->getMessage());
+        }
     }
 
     /**
@@ -104,43 +105,29 @@ class FormController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $form = Form::findOrFail($id);
+        try {
+            $form = Form::findOrFail($id);
+            $form->update($request->only(['name', 'description']));
 
-        $form->update([
-            'name' => $request->input('name'),
-            'description' => $request->input('description'),
-        ]);
+            if ($request->filled('deleted_inputs')) {
+                $deletedInputs = explode(',', $request->input('deleted_inputs'));
+                FormInput::whereIn('id', $deletedInputs)->delete();
+            }
 
-        if ($request->filled('deleted_inputs')) {
-            $deletedInputs = explode(',', $request->input('deleted_inputs'));
-            FormInput::whereIn('id', $deletedInputs)->delete();
-        }
-
-        if ($request->has('inputs')) {
-            foreach ($request->input('inputs') as $key => $inputData) {
-                if (isset($inputData['label']) && isset($inputData['type'])) {
-                    if (is_numeric($key)) {
-                        FormInput::where('id', $key)->update([
-                            'label' => $inputData['label'],
-                            'type' => $inputData['type'],
-                        ]);
-                    } else {
-                        $form->inputs()->create([
-                            'label' => $inputData['label'],
-                            'type' => $inputData['type'],
-                        ]);
+            if ($request->has('inputs')) {
+                foreach ($request->inputs as $key => $inputData) {
+                    if (isset($inputData['label'], $inputData['type'])) {
+                        is_numeric($key)
+                            ? FormInput::where('id', $key)->update($inputData)
+                            : $form->inputs()->create($inputData);
                     }
                 }
             }
+
+            return $this->successResponse($form, 'Form updated successfully');
+        } catch (Exception $e) {
+            return $this->errorResponse('Failed to update form', 500, $e->getMessage());
         }
-
-        return response()->json([
-            'message' => 'Success',
-            'data' => [
-                'forms' => $form
-            ],
-
-        ], 201);
     }
 
     /**
@@ -148,42 +135,41 @@ class FormController extends Controller
      */
     public function destroy(string $id)
     {
-        $form = Form::findOrFail($id);
-        $form->delete();
-
-        return response()->json([
-            'message' => 'Success',
-            'data' => [
-
-            ],
-
-        ], 200);
+        try {
+            $form = Form::findOrFail($id);
+            $form->delete();
+            return $this->successResponse(null, 'Form deleted successfully');
+        } catch (Exception $e) {
+            return $this->errorResponse('Failed to delete form', 500, $e->getMessage());
+        }
     }
 
     public function submit(Request $request, string $id)
     {
-        $form = Form::findOrFail($id);
-
-        $request->validate([
-            'responses' => 'required|array',
-            'responses.*.input_id' => 'required|exists:form_inputs,id',
-            'responses.*.response' => 'required',
-        ]);
-
-        foreach ($request->responses as $response) {
-            FormResponse::create([
-                'user_id' => auth()->id(),
-                'form_id' => $form->id,
-                'form_input_id' => $response['input_id'],
-                'response' => is_array($response['response']) ? json_encode($response['response']) : $response['response'],
+        try {
+            $form = Form::findOrFail($id);
+            $request->validate([
+                'responses' => 'required|array',
+                'responses.*.input_id' => 'required|exists:form_inputs,id',
+                'responses.*.response' => 'required',
             ]);
+
+            foreach ($request->responses as $response) {
+                FormResponse::create([
+                    'user_id' => auth()->id(),
+                    'form_id' => $form->id,
+                    'form_input_id' => $response['input_id'],
+                    'response' => is_array($response['response']) ? json_encode($response['response']) : $response['response'],
+                ]);
+            }
+
+            Mail::to(auth()->user())->send(new FormSubmissionMail());
+
+            return $this->successResponse(null, 'Form submitted successfully');
+        } catch (ValidationException $e) {
+            return $this->errorResponse('Validation error', 422, $e->errors());
+        } catch (Exception $e) {
+            return $this->errorResponse('Failed to submit form', 500, $e->getMessage());
         }
-
-        Mail::to(auth()->user())->send(new FormSubmissionMail());
-
-        return response()->json([
-            'message' => 'Success',
-            'data' => [],
-        ], 200);
     }
 }
