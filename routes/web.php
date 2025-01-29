@@ -14,16 +14,12 @@ Route::controller(AuthController::class)->group(function() {
     Route::get('/logout', 'logout')->name('logout');
 });
 
+Route::get('forms/create', [FormController::class, 'create'])->name('forms.create');
+Route::get('forms/{id}', [FormController::class, 'show'])->name('forms.show');
 Route::post('forms/submit/{id}', [FormController::class, 'submit'])->name('forms.submit');
 
 Route::middleware(['auth'])->group(function () {
-    Route::get('/', function() {
-        $forms = Form::all();
-
-        return view('dashboard', compact('forms'));
-    })->name('dashboard');
+    Route::get('/', [FormController::class, 'index'])->name('dashboard');
 
     Route::resource('forms', FormController::class);
 });
-
-Route::get('forms/{id}', [FormController::class, 'show'])->name('forms.show');

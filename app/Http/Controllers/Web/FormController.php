@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Mail\FormSubmissionMail;
 use App\Models\Form;
 use App\Models\FormResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class FormController extends Controller
 {
@@ -14,9 +16,9 @@ class FormController extends Controller
      */
     public function index()
     {
-        $forms = Form::all();
+        $forms = Form::where('user_id', auth()->id())->get();
 
-        return view('forms.index', compact('forms'));
+        return view('dashboard', compact('forms'));
     }
 
     /**
@@ -57,7 +59,7 @@ class FormController extends Controller
                 'options' => $input['type'] === 'select' || $input['type'] === 'checkbox'
                     ? json_encode($input['options'] ?? [])
                     : null,
-                'required' => isset($input['required']) && $input['required'] === 'on',
+                'required' => isset($input['required']) && $input['required'] === true,
             ]);
         }
 
@@ -69,7 +71,7 @@ class FormController extends Controller
      */
     public function show(string $id)
     {
-        $form = Form::with('inputs')->findOrFail($id);
+        $form = Form::with('inputs', 'responses')->findOrFail($id);
 
         return view('forms.show', compact('form'));
     }
@@ -114,11 +116,14 @@ class FormController extends Controller
 
         foreach ($request->responses as $response) {
             FormResponse::create([
+                'user_id' => auth()->id(),
                 'form_id' => $form->id,
                 'form_input_id' => $response['input_id'],
                 'response' => is_array($response['response']) ? json_encode($response['response']) : $response['response'],
             ]);
         }
+
+        Mail::to(auth()->user())->send(new FormSubmissionMail());
 
         return redirect()->route('dashboard');
     }
