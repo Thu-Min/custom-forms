@@ -59,15 +59,20 @@ class FormController extends Controller
                 'user_id' => auth()->id(),
             ]);
 
-            foreach ($request->inputs as $input) {
-                $form->inputs()->create([
+            $inputs = collect($request->inputs)->map(function ($input) use ($form) {
+                return [
+                    'form_id' => $form->id,
                     'label' => $input['label'],
                     'type' => $input['type'],
-                    'options' => $input['type'] === 'select' || $input['type'] === 'checkbox'
+                    'options' => in_array($input['type'], ['select', 'checkbox'])
                         ? json_encode($input['options'] ?? [])
-                        : null
-                ]);
-            }
+                        : null,
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ];
+            })->toArray();
+
+            FormInput::insert($inputs);
 
             return redirect()->route('dashboard');
         } catch (ValidationException $e) {
@@ -122,19 +127,13 @@ class FormController extends Controller
 
             if ($request->has('inputs')) {
                 foreach ($request->input('inputs') as $key => $inputData) {
-                    if (isset($inputData['label']) && isset($inputData['type'])) {
-                        if (is_numeric($key)) {
-                            FormInput::where('id', $key)->update([
-                                'label' => $inputData['label'],
-                                'type' => $inputData['type'],
-                            ]);
-                        } else {
-                            $form->inputs()->create([
-                                'label' => $inputData['label'],
-                                'type' => $inputData['type'],
-                            ]);
-                        }
-                    }
+                    FormInput::updateOrCreate(
+                        ['id' => is_numeric($key) ? $key : null, 'form_id' => $form->id],
+                        [
+                            'label' => $inputData['label'],
+                            'type' => $inputData['type'],
+                        ]
+                    );
                 }
             }
 
@@ -177,14 +176,18 @@ class FormController extends Controller
                 'responses.*.response' => 'required',
             ]);
 
-            foreach ($request->responses as $response) {
-                FormResponse::create([
+            $responses = collect($request->responses)->map(function ($response) use ($form) {
+                return [
                     'user_id' => auth()->id() ?? null,
                     'form_id' => $form->id,
                     'form_input_id' => $response['input_id'],
                     'response' => is_array($response['response']) ? json_encode($response['response']) : $response['response'],
-                ]);
-            }
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            })->toArray();
+
+            FormResponse::insert($responses);
 
             if (auth()->user()) {
                 Mail::to(auth()->user())->send(new FormSubmissionMail());
