@@ -58,14 +58,9 @@
                 <div id="extra-fields-${inputIndex}" class="space-y-2"></div>
 
                 <div class="flex items-center justify-end space-x-5">
-                    <button type="button" onclick="removeInput(this)">
-                        <i class="fa-solid fa-trash mt-1"></i>
+                    <button type="button" onclick="removeInput(this)" class="text-red-500">
+                        <i class="fa-solid fa-trash mt-1"></i> Remove
                     </button>
-                    <div class="border border-r-black h-8"></div>
-                    <div class="flex items-center space-x-1">
-                        <span class="">Required</span>
-                        <input type="checkbox" name="inputs[${inputIndex}][required]" class="mt-1">
-                    </div>
                 </div>
             </div>
         `;

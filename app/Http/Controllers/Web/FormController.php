@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Mail\FormSubmissionMail;
 use App\Models\Form;
+use App\Models\FormInput;
 use App\Models\FormResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -44,14 +45,12 @@ class FormController extends Controller
             'inputs.*.options.*' => 'required_if:inputs.*.type,select,checkbox|string|max:255', // Options are required for select/checkbox types
         ]);
 
-        // Store the form
         $form = Form::create([
             'name' => $request->name,
             'description' => $request->description,
             'user_id' => auth()->id(),
         ]);
 
-        // Store inputs
         foreach ($request->inputs as $input) {
             $form->inputs()->create([
                 'label' => $input['label'],
@@ -89,7 +88,37 @@ class FormController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $form = Form::findOrFail($id);
+
+        $form->update([
+            'name' => $request->input('name'),
+            'description' => $request->input('description'),
+        ]);
+
+        if ($request->filled('deleted_inputs')) {
+            $deletedInputs = explode(',', $request->input('deleted_inputs'));
+            FormInput::whereIn('id', $deletedInputs)->delete();
+        }
+
+        if ($request->has('inputs')) {
+            foreach ($request->input('inputs') as $key => $inputData) {
+                if (isset($inputData['label']) && isset($inputData['type'])) {
+                    if (is_numeric($key)) {
+                        FormInput::where('id', $key)->update([
+                            'label' => $inputData['label'],
+                            'type' => $inputData['type'],
+                        ]);
+                    } else {
+                        $form->inputs()->create([
+                            'label' => $inputData['label'],
+                            'type' => $inputData['type'],
+                        ]);
+                    }
+                }
+            }
+        }
+
+        return redirect()->route('forms.show', $form->id);
     }
 
     /**
