@@ -9,6 +9,9 @@ use App\Models\FormInput;
 use App\Models\FormResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;
 
 class FormController extends Controller
 {
@@ -17,9 +20,13 @@ class FormController extends Controller
      */
     public function index()
     {
-        $forms = Form::where('user_id', auth()->id())->get();
-
-        return view('dashboard', compact('forms'));
+        try {
+            $forms = Form::where('user_id', auth()->id())->get();
+            return view('dashboard', compact('forms'));
+        } catch (\Exception $e) {
+            Log::error('Error fetching forms: ' . $e->getMessage());
+            return redirect()->route('dashboard')->withErrors('Unable to fetch forms.');
+        }
     }
 
     /**
@@ -35,34 +42,40 @@ class FormController extends Controller
      */
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'inputs' => 'required|array',
-            'inputs.*.label' => 'required|string|max:255',
-            'inputs.*.type' => 'required|string|in:text,date,number,select,checkbox',
-            'inputs.*.options' => 'nullable|array', // Validate options only if present
-            'inputs.*.options.*' => 'required_if:inputs.*.type,select,checkbox|string|max:255', // Options are required for select/checkbox types
-        ]);
-
-        $form = Form::create([
-            'name' => $request->name,
-            'description' => $request->description,
-            'user_id' => auth()->id(),
-        ]);
-
-        foreach ($request->inputs as $input) {
-            $form->inputs()->create([
-                'label' => $input['label'],
-                'type' => $input['type'],
-                'options' => $input['type'] === 'select' || $input['type'] === 'checkbox'
-                    ? json_encode($input['options'] ?? [])
-                    : null,
-                'required' => isset($input['required']) && $input['required'] === true,
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'nullable|string',
+                'inputs' => 'required|array',
+                'inputs.*.label' => 'required|string|max:255',
+                'inputs.*.type' => 'required|string|in:text,date,number,select,checkbox',
+                'inputs.*.options' => 'nullable|array',
+                'inputs.*.options.*' => 'required_if:inputs.*.type,select,checkbox|string|max:255',
             ]);
-        }
 
-        return redirect()->route('dashboard');
+            $form = Form::create([
+                'name' => $request->name,
+                'description' => $request->description,
+                'user_id' => auth()->id(),
+            ]);
+
+            foreach ($request->inputs as $input) {
+                $form->inputs()->create([
+                    'label' => $input['label'],
+                    'type' => $input['type'],
+                    'options' => $input['type'] === 'select' || $input['type'] === 'checkbox'
+                        ? json_encode($input['options'] ?? [])
+                        : null
+                ]);
+            }
+
+            return redirect()->route('dashboard');
+        } catch (ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error storing form: ' . $e->getMessage());
+            return redirect()->back()->withErrors('Unable to store form.')->withInput();
+        }
     }
 
     /**
@@ -70,9 +83,15 @@ class FormController extends Controller
      */
     public function show(string $id)
     {
-        $form = Form::with('inputs', 'responses')->findOrFail($id);
-
-        return view('forms.show', compact('form'));
+        try {
+            $form = Form::with('inputs', 'responses')->findOrFail($id);
+            return view('forms.show', compact('form'));
+        } catch (ModelNotFoundException $e) {
+            return redirect()->route('dashboard')->withErrors('Form not found.');
+        } catch (\Exception $e) {
+            Log::error('Error displaying form: ' . $e->getMessage());
+            return redirect()->route('dashboard')->withErrors('Unable to display form.');
+        }
     }
 
     /**
@@ -80,7 +99,7 @@ class FormController extends Controller
      */
     public function edit(string $id)
     {
-        //
+        // Implementation here
     }
 
     /**
@@ -88,37 +107,46 @@ class FormController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $form = Form::findOrFail($id);
+        try {
+            $form = Form::findOrFail($id);
 
-        $form->update([
-            'name' => $request->input('name'),
-            'description' => $request->input('description'),
-        ]);
+            $form->update([
+                'name' => $request->input('name'),
+                'description' => $request->input('description'),
+            ]);
 
-        if ($request->filled('deleted_inputs')) {
-            $deletedInputs = explode(',', $request->input('deleted_inputs'));
-            FormInput::whereIn('id', $deletedInputs)->delete();
-        }
+            if ($request->filled('deleted_inputs')) {
+                $deletedInputs = explode(',', $request->input('deleted_inputs'));
+                FormInput::whereIn('id', $deletedInputs)->delete();
+            }
 
-        if ($request->has('inputs')) {
-            foreach ($request->input('inputs') as $key => $inputData) {
-                if (isset($inputData['label']) && isset($inputData['type'])) {
-                    if (is_numeric($key)) {
-                        FormInput::where('id', $key)->update([
-                            'label' => $inputData['label'],
-                            'type' => $inputData['type'],
-                        ]);
-                    } else {
-                        $form->inputs()->create([
-                            'label' => $inputData['label'],
-                            'type' => $inputData['type'],
-                        ]);
+            if ($request->has('inputs')) {
+                foreach ($request->input('inputs') as $key => $inputData) {
+                    if (isset($inputData['label']) && isset($inputData['type'])) {
+                        if (is_numeric($key)) {
+                            FormInput::where('id', $key)->update([
+                                'label' => $inputData['label'],
+                                'type' => $inputData['type'],
+                            ]);
+                        } else {
+                            $form->inputs()->create([
+                                'label' => $inputData['label'],
+                                'type' => $inputData['type'],
+                            ]);
+                        }
                     }
                 }
             }
-        }
 
-        return redirect()->route('forms.show', $form->id);
+            return redirect()->route('forms.show', $form->id);
+        } catch (ModelNotFoundException $e) {
+            return redirect()->route('dashboard')->withErrors('Form not found.');
+        } catch (ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error updating form: ' . $e->getMessage());
+            return redirect()->back()->withErrors('Unable to update form.')->withInput();
+        }
     }
 
     /**
@@ -126,34 +154,50 @@ class FormController extends Controller
      */
     public function destroy(string $id)
     {
-        $form = Form::findOrFail($id);
-
-        $form->delete();
-
-        return redirect()->route('dashboard');
+        try {
+            $form = Form::findOrFail($id);
+            $form->delete();
+            return redirect()->route('dashboard');
+        } catch (ModelNotFoundException $e) {
+            return redirect()->route('dashboard')->withErrors('Form not found.');
+        } catch (\Exception $e) {
+            Log::error('Error deleting form: ' . $e->getMessage());
+            return redirect()->route('dashboard')->withErrors('Unable to delete form.');
+        }
     }
 
     public function submit(Request $request, string $id)
     {
-        $form = Form::findOrFail($id);
+        try {
+            $form = Form::findOrFail($id);
 
-        $request->validate([
-            'responses' => 'required|array',
-            'responses.*.input_id' => 'required|exists:form_inputs,id',
-            'responses.*.response' => 'required',
-        ]);
-
-        foreach ($request->responses as $response) {
-            FormResponse::create([
-                'user_id' => auth()->id(),
-                'form_id' => $form->id,
-                'form_input_id' => $response['input_id'],
-                'response' => is_array($response['response']) ? json_encode($response['response']) : $response['response'],
+            $request->validate([
+                'responses' => 'required|array',
+                'responses.*.input_id' => 'required|exists:form_inputs,id',
+                'responses.*.response' => 'required',
             ]);
+
+            foreach ($request->responses as $response) {
+                FormResponse::create([
+                    'user_id' => auth()->id() ?? null,
+                    'form_id' => $form->id,
+                    'form_input_id' => $response['input_id'],
+                    'response' => is_array($response['response']) ? json_encode($response['response']) : $response['response'],
+                ]);
+            }
+
+            if (auth()->user()) {
+                Mail::to(auth()->user())->send(new FormSubmissionMail());
+            }
+
+            return view('forms.thank');
+        } catch (ModelNotFoundException $e) {
+            return redirect()->route('dashboard')->withErrors('Form not found.');
+        } catch (ValidationException $e) {
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error submitting form: ' . $e->getMessage());
+            return redirect()->route('dashboard')->withErrors('Unable to submit form.');
         }
-
-        Mail::to(auth()->user())->send(new FormSubmissionMail());
-
-        return redirect()->route('dashboard');
     }
 }

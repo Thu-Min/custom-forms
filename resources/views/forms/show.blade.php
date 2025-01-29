@@ -30,6 +30,17 @@
                 <p>Please login to get the email notification.</p>
             @endguest
         </div>
+        @if ($errors->any())
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <strong class="font-bold">Whoops!</strong>
+                <span class="block sm:inline">There were some problems with your input.</span>
+                <ul class="mt-3 list-disc list-inside text-sm text-red-600">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         <form action="{{ route('forms.submit', $form->id) }}" method="POST" class="space-y-4">
             @csrf
             @foreach ($form->inputs as $input)
@@ -40,6 +51,17 @@
     </div>
 @else
     <div id="questions-section" class="mt-5 max-w-5xl mx-auto p-6">
+        @if ($errors->any())
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <strong class="font-bold">Whoops!</strong>
+                <span class="block sm:inline">There were some problems with your input.</span>
+                <ul class="mt-3 list-disc list-inside text-sm text-red-600">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         <form action="{{ route('forms.update', $form->id) }}" method="POST" class="space-y-4">
             @csrf
             @method('PUT')
@@ -56,11 +78,17 @@
             <div class="bg-white shadow-md border border-gray-400 rounded-lg p-6 space-y-4 relative">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Form Name</label>
-                    <input type="text" name="name" value="{{ $form->name }}" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <input type="text" name="name" value="{{ $form->name }}" required class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('name') border-red-500 @enderror">
+                    @error('name')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
                 <div>
                     <label>Description</label>
-                    <input type="text" name="description" value="{{ $form->description }}" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <input type="text" name="description" value="{{ $form->description }}" required class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('description') border-red-500 @enderror">
+                    @error('description')
+                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                    @enderror
                 </div>
             </div>
 
@@ -70,11 +98,14 @@
                         <div class="flex items-center justify-between space-x-2">
                             <div class="w-3/4">
                                 <label class="block text-sm font-medium text-gray-700">Question</label>
-                                <input type="text" name="inputs[{{ $input->id }}][label]" value="{{ $input->label }}" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <input type="text" name="inputs[{{ $input->id }}][label]" value="{{ $input->label }}" required class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('inputs.'.$input->id.'.label') border-red-500 @enderror">
+                                @error('inputs.'.$input->id.'.label')
+                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                             <div class="w-1/4">
                                 <label class="block text-sm font-medium text-gray-700">Input Type</label>
-                                <select name="inputs[{{ $input->id }}][type]" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <select name="inputs[{{ $input->id }}][type]" required class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('inputs.'.$input->id.'.type') border-red-500 @enderror">
                                     <option value="text" {{ $input->type == 'text' ? 'selected' : '' }}>Short Answer</option>
                                     <option value="textarea" {{ $input->type == 'textarea' ? 'selected' : '' }}>Long Answer</option>
                                     <option value="date" {{ $input->type == 'date' ? 'selected' : '' }}>Date</option>
@@ -82,6 +113,9 @@
                                     <option value="select" {{ $input->type == 'select' ? 'selected' : '' }}>Select</option>
                                     <option value="checkbox" {{ $input->type == 'checkbox' ? 'selected' : '' }}>Checkbox</option>
                                 </select>
+                                @error('inputs.'.$input->id.'.type')
+                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                                @enderror
                             </div>
                         </div>
 

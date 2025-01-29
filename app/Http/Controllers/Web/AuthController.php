@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use App\Models\User;
+use Exception;
 
 class AuthController extends Controller
 {
@@ -22,45 +24,60 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+        try {
+            $request->validate([
+                'email' => 'required|email',
+                'password' => 'required',
+            ]);
 
-        $user = User::where('email', $request->email)->first();
+            $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return back()->withErrors(['email' => 'Invalid credentials'])->withInput();
+            if (!$user || !Hash::check($request->password, $user->password)) {
+                throw ValidationException::withMessages(['email' => 'Invalid credentials']);
+            }
+
+            Auth::login($user);
+
+            return redirect()->route('dashboard');
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (Exception $e) {
+            return back()->withErrors(['error' => 'An unexpected error occurred.'])->withInput();
         }
-
-        Auth::login($user);
-
-        return redirect()->route('dashboard');
     }
 
     public function register(Request $request)
     {
-        $request->validate([
-            'name' => 'required',
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
+        try {
+            $request->validate([
+                'name' => 'required|string',
+                'email' => 'required|email|unique:users,email',
+                'password' => 'required|min:8',
+            ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-        Auth::login($user);
+            Auth::login($user);
 
-        return redirect()->route('dashboard');
+            return redirect()->route('dashboard');
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors())->withInput();
+        } catch (Exception $e) {
+            return back()->withErrors(['error' => 'An unexpected error occurred.'])->withInput();
+        }
     }
 
     public function logout()
     {
-        Auth::logout();
-
-        return redirect()->route('loginPage');
+        try {
+            Auth::logout();
+            return redirect()->route('loginPage');
+        } catch (Exception $e) {
+            return back()->withErrors(['error' => 'An error occurred while logging out.']);
+        }
     }
 }

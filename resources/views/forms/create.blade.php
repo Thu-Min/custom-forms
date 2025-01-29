@@ -17,10 +17,16 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700">Form Name</label>
                 <input type="text" name="name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                @error('name')
+                    <span class="text-red-500 text-sm">{{ $message }}</span>
+                @enderror
             </div>
             <div>
                 <label>Description</label>
                 <input type="text" name="description" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                @error('description')
+                    <span class="text-red-500 text-sm">{{ $message }}</span>
+                @enderror
             </div>
         </div>
 
@@ -41,17 +47,22 @@
                     <div class="w-3/4">
                         <label class="block text-sm font-medium text-gray-700">Question</label>
                         <input type="text" name="inputs[${inputIndex}][label]" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        @error('inputs.${inputIndex}.label')
+                            <span class="text-red-500 text-sm">{{ $message }}</span>
+                        @enderror
                     </div>
                     <div class="w-1/4">
                         <label class="block text-sm font-medium text-gray-700">Input Type</label>
                         <select name="inputs[${inputIndex}][type]" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" onchange="handleTypeChange(this, ${inputIndex})">
                             <option value="text">Short Answer</option>
-                            <option value="textarea">Long Answer</option>
                             <option value="date">Date</option>
                             <option value="number">Number</option>
                             <option value="select">Select</option>
                             <option value="checkbox">Checkbox</option>
                         </select>
+                        @error('inputs.${inputIndex}.type')
+                            <span class="text-red-500 text-sm">{{ $message }}</span>
+                        @enderror
                     </div>
                 </div>
 

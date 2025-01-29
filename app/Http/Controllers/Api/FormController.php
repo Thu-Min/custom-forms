@@ -67,7 +67,6 @@ class FormController extends Controller
                     'label' => $input['label'],
                     'type' => $input['type'],
                     'options' => in_array($input['type'], ['select', 'checkbox']) ? json_encode($input['options'] ?? []) : null,
-                    'required' => isset($input['required']) && $input['required'] === true,
                 ]);
             }
 
