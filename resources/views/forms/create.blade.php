@@ -4,7 +4,6 @@
 <div class="w-full mt-5 max-w-5xl mx-auto">
     <form action="{{ route('forms.store') }}" method="POST" class="space-y-6">
         @csrf
-
         <div class="bg-gray-200 p-5 rounded-lg flex justify-between items-center sticky z-50 top-0">
             <h1 class="text-2xl font-bold">Create New Form</h1>
 
