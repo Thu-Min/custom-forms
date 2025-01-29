@@ -12,4 +12,9 @@ class Form extends Model
     {
         return $this->hasMany(FormInput::class);
     }
+
+    public function responses()
+    {
+        return $this->hasMany(FormResponse::class);
+    }
 }
