@@ -168,12 +168,10 @@
         if (inputElement) {
             inputElement.remove();
 
-            // Track deleted inputs only if they exist in the database
             if (!isNaN(id)) {
                 deletedInputs.push(id);
             }
 
-            // Update hidden field with deleted input IDs
             document.getElementById('deleted-inputs').value = deletedInputs.join(',');
         }
     }
