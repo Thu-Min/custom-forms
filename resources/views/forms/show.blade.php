@@ -105,9 +105,8 @@
                             </div>
                             <div class="w-1/4">
                                 <label class="block text-sm font-medium text-gray-700">Input Type</label>
-                                <select name="inputs[{{ $input->id }}][type]" required class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('inputs.'.$input->id.'.type') border-red-500 @enderror">
+                                <select name="inputs[{{ $input->id }}][type]" required class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm @error('inputs.'.$input->id.'.type') border-red-500 @enderror" onchange="handleTypeChange(this, {{ $input->id }})">
                                     <option value="text" {{ $input->type == 'text' ? 'selected' : '' }}>Short Answer</option>
-                                    <option value="textarea" {{ $input->type == 'textarea' ? 'selected' : '' }}>Long Answer</option>
                                     <option value="date" {{ $input->type == 'date' ? 'selected' : '' }}>Date</option>
                                     <option value="number" {{ $input->type == 'number' ? 'selected' : '' }}>Number</option>
                                     <option value="select" {{ $input->type == 'select' ? 'selected' : '' }}>Select</option>
@@ -118,6 +117,23 @@
                                 @enderror
                             </div>
                         </div>
+
+                        @if ($input->type == 'select' || $input->type == 'checkbox')
+                            <div class="w-full mt-4" id="extra-fields-{{ $input->id }}">
+                                <label class="block text-sm font-medium text-gray-700">Options</label>
+
+                                <input type="hidden" name="inputs[{{ $input->id }}][deleted_options]" id="deleted-options-{{ $input->id }}" value="[]">
+
+                                @foreach (json_decode($input->options, true) as $option)
+                                    <div class="flex items-center space-x-2 mb-2">
+                                        <input type="text" name="inputs[{{ $input->id }}][options][]" value="{{ $option }}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                        <button type="button" onclick="removeOption(this, {{ $input->id }}, '{{ $option }}')" class="mt-1 inline-flex items-center px-2 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Remove</button>
+                                    </div>
+                                @endforeach
+
+                                <button type="button" onclick="addOption({{ $input->id }})" class="mt-1 inline-flex items-center px-2 py-2 text-center border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Add Option</button>
+                            </div>
+                        @endif
 
                         <div class="flex items-center justify-end space-x-5">
                             <button type="button" onclick="removeInput({{ $input->id }})" class="text-red-500">
@@ -137,7 +153,7 @@
                     <span class="block font-semibold">{{ $input->label }}</span>
                     @foreach ($form->responses as $response)
                         @if ($response->form_input_id === $input->id)
-                            <span class="block text-gray-700">{{ $response->response }}</span>
+                            <span class="block text-gray-700">{{ is_array($response->response) ? json_encode($response->response) : $response->response }}</span>
                         @endif
                     @endforeach
                 </div>
@@ -173,7 +189,7 @@
                     </div>
                     <div class="w-1/4">
                         <label class="block text-sm font-medium text-gray-700">Input Type</label>
-                        <select name="inputs[new][${inputIndex}][type]" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                        <select name="inputs[new][${inputIndex}][type]" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" onchange="handleTypeChange(this, ${inputIndex})">
                             <option value="text">Short Answer</option>
                             <option value="textarea">Long Answer</option>
                             <option value="date">Date</option>
@@ -183,6 +199,8 @@
                         </select>
                     </div>
                 </div>
+
+                <div id="extra-fields-${inputIndex}" class="space-y-2"></div>
 
                 <div class="flex items-center justify-end space-x-5">
                     <button type="button" onclick="removeInput(${inputIndex})" class="text-red-500">
@@ -208,5 +226,86 @@
 
             document.getElementById('deleted-inputs').value = deletedInputs.join(',');
         }
+    }
+
+    function handleTypeChange(selectElement, index) {
+        const extraFieldsContainer = document.getElementById(`extra-fields-${index}`);
+        extraFieldsContainer.innerHTML = '';
+
+        if (selectElement.value === 'select') {
+            const optionsField = `
+                <div id="options-container-${index}">
+                    <div class="mb-2">
+                        <label class="block text-sm font-medium text-gray-700">Options ${index}</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" name="inputs[${index}][options][]" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            <button type="button" onclick="removeOption(this)" class="mt-1 inline-flex items-center px-2 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="addOption(${index})" class="mt-1 inline-flex items-center px-2 py-2 text-center border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Add Option</button>
+            `;
+            extraFieldsContainer.insertAdjacentHTML('beforeend', optionsField);
+        } else if (selectElement.value === 'checkbox') {
+            const checkboxField = `
+                <div id="checkbox-container-${index}">
+                    <div class="mb-2">
+                        <label class="block text-sm font-medium text-gray-700">Options ${index}</label>
+                        <div class="flex items-center space-x-2">
+                            <input type="text" name="inputs[${index}][options][]" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                            <button type="button" onclick="removeInput(this)" class="mt-1 inline-flex items-center px-2 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" onclick="addCheckbox(${index})" class="mt-1 inline-flex items-center px-2 py-2 text-center border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">Add Option</button>
+            `;
+            extraFieldsContainer.insertAdjacentHTML('beforeend', checkboxField);
+        }
+    }
+
+    function addOption(index) {
+        const optionsContainer = document.getElementById(`options-container-${index}`);
+        const newOption = `
+            <div class="mb-2">
+                <label class="block text-sm font-medium text-gray-700">Option ${optionsContainer.children.length + 1}</label>
+                <div class="flex items-center space-x-2">
+                    <input type="text" name="inputs[${index}][options][]" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <button type="button" onclick="removeOption(this)" class="mt-1 inline-flex items-center px-2 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Remove</button>
+                </div>
+            </div>
+        `;
+        optionsContainer.insertAdjacentHTML('beforeend', newOption);
+    }
+
+    function removeOption(button, inputId, optionValue) {
+        const optionDiv = button.parentElement;
+        optionDiv.remove();
+
+        let deletedOptionsInput = document.getElementById(`deleted-options-${inputId}`);
+        let deletedOptions = JSON.parse(deletedOptionsInput.value);
+
+        if (!deletedOptions.includes(optionValue)) {
+            deletedOptions.push(optionValue);
+        }
+
+        deletedOptionsInput.value = JSON.stringify(deletedOptions);
+    }
+
+    function addCheckbox(index) {
+        const checkboxContainer = document.getElementById(`checkbox-container-${index}`);
+        const newCheckbox = `
+            <div class="mb-2">
+                <label class="block text-sm font-medium text-gray-700">Option ${checkboxContainer.children.length + 1}</label>
+                <div class="flex items-center space-x-2">
+                    <input type="text" name="inputs[${index}][options][]" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                    <button type="button" onclick="removeCheckbox(this)" class="mt-1 inline-flex items-center px-2 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">Remove</button>
+                </div>
+            </div>
+        `;
+        checkboxContainer.insertAdjacentHTML('beforeend', newCheckbox);
+    }
+
+    function removeCheckbox(button) {
+        button.parentElement.remove();
     }
 </script>

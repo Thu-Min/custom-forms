@@ -127,13 +127,26 @@ class FormController extends Controller
 
             if ($request->has('inputs')) {
                 foreach ($request->input('inputs') as $key => $inputData) {
-                    FormInput::updateOrCreate(
+                    $input = FormInput::updateOrCreate(
                         ['id' => is_numeric($key) ? $key : null, 'form_id' => $form->id],
                         [
                             'label' => $inputData['label'],
                             'type' => $inputData['type'],
                         ]
                     );
+
+                    if (isset($inputData['options'])) {
+                        $existingOptions = json_decode($input->options, true) ?? [];
+                        $newOptions = array_filter($inputData['options']);
+
+                        $deletedOptions = isset($inputData['deleted_options'])
+                            ? json_decode($inputData['deleted_options'], true) ?? []
+                            : [];
+
+                        $existingOptions = array_values(array_diff($existingOptions, $deletedOptions));
+
+                        $input->update(['options' => json_encode($existingOptions)]);
+                    }
                 }
             }
 
